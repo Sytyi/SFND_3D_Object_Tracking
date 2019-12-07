@@ -154,5 +154,34 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+    for ( int bbInd = 0; bbInd < prevFrame.boundingBoxes.size(); ++bbInd)
+    {
+        auto & bb = prevFrame.boundingBoxes[bbInd];
+        std::vector<int> counter(currFrame.boundingBoxes.size(), 0);
+        for (int kptInd = 0; kptInd < prevFrame.keypoints.size(); ++kptInd) {
+            // skip keypoints not in this BB
+            if (! bb.roi.contains(prevFrame.keypoints[kptInd].pt))
+                continue;
+
+            int matchedKptInd = -1;
+            for (auto &dm : matches) {
+                if (dm.queryIdx == kptInd) {
+                    matchedKptInd = dm.trainIdx;
+                    break;
+                }
+            }
+            if (matchedKptInd < 0 )
+                continue;
+
+            for (int candBBInd = 0; candBBInd < currFrame.boundingBoxes.size(); ++candBBInd){
+                auto & bb2 = currFrame.boundingBoxes[candBBInd];
+                if (bb2.roi.contains(currFrame.keypoints[matchedKptInd].pt)){
+                    ++counter[candBBInd];
+                    break;
+                }
+            } // candidate BB loop
+        } // kpts loop
+        int bestMatch = std::max_element(counter.begin(),counter.end()) - counter.begin();
+        bbBestMatches.insert(pair<int,int>(bbInd, bestMatch));
+    } // end prev frame BB loop
 }
